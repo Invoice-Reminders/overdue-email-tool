@@ -12,6 +12,8 @@ export default function Page() {
   const [amount, setAmount] = useState<string>("");
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [recipientEmail, setRecipientEmail] = useState<string>("");
+  const [recipientName, setRecipientName] = useState<string>("");
+  const [senderName, setSenderName] = useState<string>("");
   const [daysOverdue, setDaysOverdue] = useState<number>(7);
 
   const [loading, setLoading] = useState(false);
@@ -26,20 +28,14 @@ export default function Page() {
   }, [amount, daysOverdue]);
 
   const tone = useMemo<Tone>(() => {
-    if (daysOverdue <= 5) return "polite";
-    if (daysOverdue <= 14) return "firm";
+    if (daysOverdue <= 7) return "polite";
+    if (daysOverdue <= 21) return "firm";
     return "final";
   }, [daysOverdue]);
 
   const mailtoHref = useMemo(() => {
     if (!result) return "";
-    // Double line breaks between segments so mailto body decodes with a blank line between
-    // sentences (%0A%0A). Wording unchanged; only spacing for the opened email client.
-    const bodyForMailto = result.body
-      .replace(/\r\n/g, "\n")
-      .split(/\n+/)
-      .filter((segment) => segment.length > 0)
-      .join("\n\n");
+    const bodyForMailto = result.body.replace(/\r\n/g, "\n");
     const recipient = recipientEmail.trim();
     const scheme = recipient
       ? `mailto:${encodeURIComponent(recipient)}`
@@ -60,6 +56,8 @@ export default function Page() {
         body: JSON.stringify({
           amount: amount.trim(),
           invoiceNumber: invoiceNumber.trim(),
+          recipientName: recipientName.trim(),
+          senderName: senderName.trim(),
           daysOverdue,
           tone,
         }),
@@ -157,11 +155,39 @@ export default function Page() {
 
               <label className="sm:col-span-2">
                 <div className="text-sm font-medium text-zinc-900">
+                  Recipient name
+                </div>
+                <input
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-900"
+                />
+              </label>
+
+              <label className="sm:col-span-2">
+                <div className="text-sm font-medium text-zinc-900">
+                  Sender name or business name
+                </div>
+                <input
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-900"
+                />
+              </label>
+
+              <label className="sm:col-span-2">
+                <div className="text-sm font-medium text-zinc-900">
                   Days Overdue
                 </div>
                 <input
                   value={Number.isFinite(daysOverdue) ? daysOverdue : 0}
-                  onChange={(e) => setDaysOverdue(Number(e.target.value))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const cleaned = raw.replace(/^0+(?=\d)/, "");
+                    setDaysOverdue(cleaned === "" ? 0 : Number(cleaned));
+                  }}
                   min={0}
                   type="number"
                   className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-900"
