@@ -11,8 +11,8 @@ type ApiResult =
 export default function Page() {
   const [amount, setAmount] = useState<string>("");
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
+  const [recipientEmail, setRecipientEmail] = useState<string>("");
   const [daysOverdue, setDaysOverdue] = useState<number>(7);
-  const [tone, setTone] = useState<Tone>("polite");
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ subject: string; body: string } | null>(
@@ -24,6 +24,28 @@ export default function Page() {
   const canGenerate = useMemo(() => {
     return amount.trim().length > 0 && Number.isFinite(daysOverdue) && daysOverdue >= 0;
   }, [amount, daysOverdue]);
+
+  const tone = useMemo<Tone>(() => {
+    if (daysOverdue <= 5) return "polite";
+    if (daysOverdue <= 14) return "firm";
+    return "final";
+  }, [daysOverdue]);
+
+  const mailtoHref = useMemo(() => {
+    if (!result) return "";
+    // Double line breaks between segments so mailto body decodes with a blank line between
+    // sentences (%0A%0A). Wording unchanged; only spacing for the opened email client.
+    const bodyForMailto = result.body
+      .replace(/\r\n/g, "\n")
+      .split(/\n+/)
+      .filter((segment) => segment.length > 0)
+      .join("\n\n");
+    const recipient = recipientEmail.trim();
+    const scheme = recipient
+      ? `mailto:${encodeURIComponent(recipient)}`
+      : "mailto:";
+    return `${scheme}?subject=${encodeURIComponent(result.subject)}&body=${encodeURIComponent(bodyForMailto)}`;
+  }, [result, recipientEmail]);
 
   async function onGenerate() {
     if (!canGenerate || loading) return;
@@ -118,7 +140,22 @@ export default function Page() {
                 />
               </label>
 
-              <label>
+              <label className="sm:col-span-2">
+                <div className="text-sm font-medium text-zinc-900">
+                  Recipient email (optional)
+                </div>
+                <input
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-900"
+                />
+              </label>
+
+              <label className="sm:col-span-2">
                 <div className="text-sm font-medium text-zinc-900">
                   Days Overdue
                 </div>
@@ -129,19 +166,6 @@ export default function Page() {
                   type="number"
                   className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-900"
                 />
-              </label>
-
-              <label>
-                <div className="text-sm font-medium text-zinc-900">Tone</div>
-                <select
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value as Tone)}
-                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 focus:border-zinc-900"
-                >
-                  <option value="polite">Polite</option>
-                  <option value="firm">Firm</option>
-                  <option value="final">Final</option>
-                </select>
               </label>
             </div>
 
@@ -174,13 +198,21 @@ export default function Page() {
                   <span className="font-semibold text-zinc-900">Subject:</span>{" "}
                   <span className="text-zinc-900">{result.subject}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={onCopy}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50"
-                >
-                  {copied ? "Copied" : "Copy to clipboard"}
-                </button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                  <a
+                    href={mailtoHref}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 sm:w-auto"
+                  >
+                    Open in Email
+                  </a>
+                  <button
+                    type="button"
+                    onClick={onCopy}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm transition hover:bg-zinc-50 sm:w-auto"
+                  >
+                    {copied ? "Copied" : "Copy to clipboard"}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4">
